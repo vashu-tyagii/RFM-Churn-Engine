@@ -1,0 +1,15 @@
+-- Entire Sales Data
+-- CREATE TABLE IF NOT EXISTS sales_data (
+--     Invoice VARCHAR(50),
+--     StockCode VARCHAR(50),
+--     Description VARCHAR(255),
+--     Quantity INT,
+--     InvoiceDate DATETIME,
+--     Price DECIMAL(10, 2),
+--     Customer ID VARCHAR(20),
+--     Country VARCHAR(50),
+--     TotalPrice DECIMAL(10, 2),
+--     Year INT,
+--     Month INT,
+--     MonthYear VARCHAR(20)
+-- );
