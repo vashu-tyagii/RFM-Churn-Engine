@@ -1,55 +1,55 @@
-import os
 import sys
+import sqlite3
 from pathlib import Path
 import pandas as pd  # type:ignore
-from tqdm import tqdm  # type:ignore
 
-# Automatic root folder dhoondh kar sys.path mein jodna
-current_dir = Path(__file__).resolve()
-for parent in [current_dir] + list(current_dir.parents):
-    if parent.name == "RFM-Churn-Engine":
-        sys.path.append(str(parent))
-        break
+# 1. Project Root Directory Setup
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
-# Config se engine import karo
-# # fmt: off
-from config.sql_connect import engine # type:ignore
-# # fmt: on
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CSV_FILE_PATH = os.path.join(BASE_DIR, "data", "dataset.csv")
+CSV_FILE_PATH = ROOT_DIR / "data" / "dataset.csv"
+DB_FILE_PATH = ROOT_DIR / "data" / "rfm_database.db"
 TABLE_NAME = "sales_data"
-CHUNK_SIZE = 50000
 
-print(f"🚀 Starting Data Ingestion into '{TABLE_NAME}' table...")
-
+print(f"🚀 Starting Persistent Direct Ingestion into SQLite...")
 
 def InsertData():
+    if not CSV_FILE_PATH.exists():
+        print(f"❌ Error: CSV File not found at {CSV_FILE_PATH}")
+        return
+
+    print("📖 Reading CSV dataset...")
     df = pd.read_csv(CSV_FILE_PATH)
 
     if df.empty:
-        print(f"⚠️ CSV file is empty: {CSV_FILE_PATH}")
+        print("⚠️ Warning: CSV file is empty!")
         return
 
-    df.to_sql(
-        TABLE_NAME,
-        con=engine,
-        if_exists="replace",
-        index=False,
-        chunksize=CHUNK_SIZE,
-    )
+    print(f"📊 Total rows loaded from CSV: {len(df):,}")
 
-    print(
-        f"✅ Data inserted successfully into '{TABLE_NAME}' from '{CSV_FILE_PATH}'")
+    # Ensure data directory exists
+    DB_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
+    # Direct SQLite Persistent Connection
+    conn = sqlite3.connect(DB_FILE_PATH)
+    try:
+        df.to_sql(TABLE_NAME, con=conn, if_exists="replace", index=False)
+        conn.commit()  # Direct Permanent Storage
+        print(f"✅ Successfully persisted {len(df):,} rows into '{DB_FILE_PATH.name}'!")
+    except Exception as e:
+        print(f"❌ Ingestion Error: {e}")
+    finally:
+        conn.close()
 
-def showtable():
-    query = """
-    SELECT * FROM sales_data LIMIT 10;
-    """
-    print(pd.read_sql(query, con=engine))
-
+def VerifyData():
+    conn = sqlite3.connect(DB_FILE_PATH)
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT COUNT(*) FROM {TABLE_NAME};")
+    count = cursor.fetchone()[0]
+    conn.close()
+    print(f"🔍 Hard Verified DB Count: {count:,} rows")
 
 if __name__ == "__main__":
     InsertData()
-    showtable()
+    VerifyData()
